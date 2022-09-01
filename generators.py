@@ -21,8 +21,8 @@ class WeatherGen:
 
     Attributes
     ----------
-    total_rain : int
-        An int that represent total amount of rain
+    total_snow : int
+        An int that represent total amount of snow currently
     WeatherObservation : namedtuple
         A namedtuple for 'timestamp temperature dewpoint humidity barometric_pressure'
     temp : float
@@ -50,7 +50,7 @@ class WeatherGen:
         Returns a random float from the range of 995.6 to 1009.1 which represent the barometric pressure
     """
 
-    total_rain = 0
+    total_snow = 0
 
     def __init__(self):
         self.WeatherObservation = namedtuple('WeatherObservation',
@@ -59,25 +59,25 @@ class WeatherGen:
         self.weather = self.WeatherObservation(datetime.datetime(2022, 1, 1, 0, 0, 0), self.temp,
                                                self.dewpoint_gen(), self.humidity_gen(), self.barometricp_gen())
 
-    def __iter__(self):
-        return self
 
     def __next__(self):
         """
-        Checks if rain is possible and if so adds it to total_rain then prints the current
-        weather then generates the next 5 minutes weather and saves it
+        Checks if snow is possible and if so adds it to total_snow then prints the current
+        weather then generates the next 5 minutes weather and saves it then determine how much snow
+        would melt if the temperature has increased
         """
-        rain_gen = RainGen(self.weather.humidity, self.weather.barometric_pressure)
-        WeatherGen.total_rain += rain_gen.rain_amount()
+        precipitation = PrecipitationGen(self.weather.humidity, self.weather.barometric_pressure, self.weather.temperature)
+        WeatherGen.total_snow += precipitation.precipitation_amount()
         print(f"""Date: {self.weather.timestamp.strftime('%Y, %B, %A %I:%M%p')}
     Temperature: {self.weather.temperature}C
     Dewpoint: {self.weather.dewpoint}
     Humidity: {self.weather.humidity}%
     Barometric Pressure: {self.weather.barometric_pressure}
-    Total Rain amount: {WeatherGen.total_rain}ml""", end='\n\n\n\n')
+    Total snow amount: {WeatherGen.total_snow}ml""", end='\n\n\n\n')
         self.temp = self.temperature_gen()
         self.weather = self.WeatherObservation(self.timestamp_gen(), self.temp, self.dewpoint_gen(),
                                                self.humidity_gen(), self.barometricp_gen())
+        WeatherGen.total_snow -= self.snow_melt_amount()
 
     def timestamp_gen(self):
         """
@@ -88,9 +88,9 @@ class WeatherGen:
 
     def temperature_gen(self):
         """
-        returns a random float temperature between -3.8 and 1.6
+        returns a random int temperature between -8C and 3C
         """
-        return round(random.uniform(-3.8, 1.6), 1)
+        return random.randint(-8, 3)
 
     def dewpoint_gen(self):
         """
@@ -100,9 +100,9 @@ class WeatherGen:
 
     def humidity_gen(self):
         """
-        returns an int from the range of 40 to 100 incremented by 10
+        returns an int from the range of 10 to 100 incremented by 10
         """
-        return random.randrange(40, 100, 10)
+        return random.randrange(10, 100, 10)
 
     def barometricp_gen(self):
         """
@@ -110,20 +110,28 @@ class WeatherGen:
         """
         return round(random.uniform(995.6, 1009.1), 1)
 
+    def snow_melt_amount(self):
+        if self.weather.temperature == 1:
+            return 0.05
+        elif self.weather.temperature == 2:
+            return 0.1
+        elif self.weather.temperature == 3:
+            return 0.15
+        return 0
 
-class RainGen:
+class PrecipitationGen:
     """
-    A class used to determine if rain is possible
+    A class used to determine if precipitation is possible
 
     ...
 
     Methods
     -------
-    rain_amount()
-        Returns the amount of rain depending on the current humidity and barometric pressure
+    precipitation_amount()
+        Returns the amount of precipitation depending on the current humidity and barometric pressure
     """
 
-    def __init__(self, humidity, pressure):
+    def __init__(self, humidity, pressure, temperature):
         """
         Parameters
         ----------
@@ -131,13 +139,18 @@ class RainGen:
             The current humidity
         pressure : float
             The current barometric pressure
+
+        temperature : int:
+            The current temperature
         """
         self.humidity = humidity
         self.pressure = pressure
+        self.temperature = temperature
 
-    def rain_amount(self):
+    def precipitation_amount(self):
         """
-        Returns the amount of rain depending on the current humidity and barometric pressure
+        Returns the amount of precipitation depending on the current humidity and
+        barometric pressure
         """
         if self.humidity == 100:
             if 1009.1 > self.pressure > 1005.8:
