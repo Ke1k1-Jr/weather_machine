@@ -32,6 +32,9 @@ class WeatherGen:
 
     Methods
     -------
+    get_target_date()
+        Gets the users desired date for the forcast
+
     timestamp_gen()
         Adds five minutes to the current time and returns a datetime type
 
@@ -51,6 +54,9 @@ class WeatherGen:
 
     add_snow(precipitation_amount)
         Returns the amount of water that would turn into snow and add it to the total_snow
+
+    snow_melt_temp():
+        If the temperature is above 0C subtract a certain number from total_snow
     """
 
     total_snow = 0
@@ -58,27 +64,46 @@ class WeatherGen:
     def __init__(self):
         self.WeatherObservation = namedtuple('WeatherObservation',
                                              'timestamp temperature dewpoint humidity barometric_pressure')
+        self.get_target_date()
         self.temp = self.temperature_gen()
         self.weather = self.WeatherObservation(datetime.datetime(2022, 1, 1, 0, 0, 0), self.temp,
                                                self.dewpoint_gen(), self.humidity_gen(), self.barometricp_gen())
+        while self.weather.timestamp != self.target_date:
+            self.__next__()
+
+        print(f"""\n\nDate: {self.weather.timestamp.strftime('%Y, %B, %d %I:%M%p')}
+            Temperature: {self.weather.temperature}C
+            Dewpoint: {self.weather.dewpoint}
+            Humidity: {self.weather.humidity}%
+            Barometric pressure: {self.weather.barometric_pressure}
+            Total snow amount: {round(WeatherGen.total_snow, 3)} meters""")
 
     def __next__(self):
         """
-        Checks if precipitation is possible and if it is snow then it adds it to total_snow then prints the current
-        weather then generates the next 5 minutes weather and saves it
+        Checks if precipitation is possible and if it is snow then it adds it to total_snow or if the temperature
+        is higher than 0C or if it rains subtract from total_snow. Then it generates the next 5 minutes weather and saves it.
         """
-        precipitation_gen = PrecipitationGen(self.weather.humidity, self.weather.barometric_pressure, self.weather.temperature)
+        precipitation_gen = PrecipitationGen(self.weather.humidity, self.weather.barometric_pressure,
+                                             self.weather.temperature)
         if precipitation_gen.snow_or_rain() == "Snow":
             self.add_snow(precipitation_gen.precipitation_amount())
-        print(f"""Date: {self.weather.timestamp.strftime('%Y, %B, %A %I:%M%p')}
-    Temperature: {self.weather.temperature}C
-    Dewpoint: {self.weather.dewpoint}
-    Humidity: {self.weather.humidity}%
-    Barometric pressure: {self.weather.barometric_pressure}
-    Total snow amount: {round(WeatherGen.total_snow, 3)}meters""", end='\n\n\n\n')
+        if precipitation_gen.snow_or_rain() == "Rain":
+            WeatherGen.total_snow -= precipitation_gen.precipitation_amount()
+        if self.temp > 0:
+            self.snow_melt_temp()
+        if WeatherGen.total_snow < 0:
+            WeatherGen.total_snow = 0
         self.temp = self.temperature_gen()
         self.weather = self.WeatherObservation(self.timestamp_gen(), self.temp, self.dewpoint_gen(),
                                                self.humidity_gen(), self.barometricp_gen())
+
+    def get_target_date(self):
+        self.year = int(input("Enter a target year (YYYY): "))
+        self.month = int(input("Enter a target month (MM): "))
+        self.day = int(input("Enter a target day (DD): "))
+        self.hour = int(input("Enter a target hour (HH): "))
+        self.min = int(input("Enter a target minute (MM): "))
+        self.target_date = datetime.datetime(self.year, self.month, self.day, self.hour, self.min, 0)
 
     def timestamp_gen(self):
         """
@@ -116,11 +141,22 @@ class WeatherGen:
         Depending on the temperature how much water turns into snow is multiplied by a certain number
         """
         if -1 >= self.temp >= -3:
-            WeatherGen.total_snow += precipitation_amount * 0.01
+            WeatherGen.total_snow += precipitation_amount * .05
         if -4 >= self.temp >= -6:
-            WeatherGen.total_snow += precipitation_amount * 0.015
+            WeatherGen.total_snow += precipitation_amount * .2
         else:
-            WeatherGen.total_snow += precipitation_amount * 0.02
+            WeatherGen.total_snow += precipitation_amount * .5
+
+    def snow_melt_temp(self):
+        if self.weather.temperature == 1:
+            return 0.05
+        elif self.weather.temperature == 2:
+            return 0.1
+        elif self.weather.temperature == 3:
+            return 0.15
+        else:
+            return 0
+
 
     def snow_melt_amount(self):
         if self.weather.temperature == 1:
