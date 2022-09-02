@@ -122,6 +122,14 @@ class WeatherGen:
         else:
             WeatherGen.total_snow += precipitation_amount * 0.02
 
+    def snow_melt_amount(self):
+        if self.weather.temperature == 1:
+            return 0.05
+        if self.weather.temperature == 2:
+            return 0.1
+        if self.weather.temperature == 3:
+            return 0.15
+
 class PrecipitationGen:
     """
     A class used to determine if precipitation is possible and whether it is snow or rain
