@@ -30,6 +30,7 @@ class WeatherGen:
     def __init__(self):
         self.get_target_date()
         self.weather = WeatherObservation(datetime.datetime.now())
+        self.interval_period = int(input("Interval period: "))
         while self.weather.curr_weather.timestamp <= self.target_date:
             print(f"""\n\nDate: {self.weather.curr_weather.timestamp.strftime('%Y, %B, %d %I:%M%p')}
                         Temperature: {self.weather.curr_weather.temperature}C
@@ -47,9 +48,7 @@ class WeatherGen:
 
     def __next__(self):
 
-        precipitation_gen = PrecipitationGen(self.weather.curr_weather.humidity,
-                                             self.weather.curr_weather.barometric_pressure,
-                                             self.weather.curr_weather.temperature)
+        precipitation_gen = PrecipitationGen(self.weather, self.interval_period)
         if precipitation_gen.snow_or_rain() == "Snow":
             self.add_snow(precipitation_gen.precipitation_amount())
         if precipitation_gen.snow_or_rain() == "Rain":
@@ -58,7 +57,7 @@ class WeatherGen:
             self.snow_melt_temp()
         if WeatherGen.total_snow < 0:
             WeatherGen.total_snow = 0
-        self.weather = WeatherObservation(self.weather.curr_weather.timestamp + datetime.timedelta(minutes=5))
+        self.weather = WeatherObservation(self.weather.curr_weather.timestamp + datetime.timedelta(minutes=self.interval_period))
 
     def get_target_date(self):
         self.year = int(input("Enter a target year (YYYY): "))
@@ -88,36 +87,37 @@ class WeatherGen:
 
 
 class PrecipitationGen:
-    def __init__(self, humidity, pressure, temperature):
-        self.humidity = humidity
-        self.pressure = pressure
-        self.temp = temperature
+    def __init__(self, weather_observation, interval_period):
+        self.humidity = weather_observation.curr_weather.humidity
+        self.pressure = weather_observation.curr_weather.barometric_pressure
+        self.temp = weather_observation.curr_weather.temperature
+        self.duration = interval_period
 
     def precipitation_amount(self):
         if self.humidity == 100:
             if 1009.1 > self.pressure > 1005.8:
-                return 1
+                return 1 * self.duration
             elif 1005.8 > self.pressure > 1002.4:
-                return 2
+                return 2 * self.duration
             elif 1002.4 > self.pressure > 999.0:
-                return 3
+                return 3 * self.duration
             elif 999.0 > self.pressure > 995.6:
-                return 4
+                return 4 * self.duration
         elif self.humidity == 90:
             if 1005.8 > self.pressure > 1002.4:
-                return 1
+                return 1 * self.duration
             elif 1002.4 > self.pressure > 999.0:
-                return 2
+                return 2 * self.duration
             elif 999.0 > self.pressure > 995.6:
-                return 3
+                return 3 * self.duration
         elif self.humidity == 80:
             if 1002.4 > self.pressure > 999.0:
-                return 1
+                return 1 * self.duration
             elif 999.0 > self.pressure > 995.6:
-                return 2
+                return 2 * self.duration
         elif self.humidity == 70:
             if 999.0 > self.pressure > 995.6:
-                return 1
+                return 1 * self.duration
         return 0
 
     def snow_or_rain(self):
