@@ -12,68 +12,71 @@ class WeatherObservation:
                                                     self.dewpoint_gen(), self.humidity_gen(), self.barometricp_gen())
 
     def temperature_gen(self):
-        return random.randint(-8, 3)
+        return random.randint(-8, 2)
 
     def dewpoint_gen(self):
         return round(self.temp - 2)
 
     def humidity_gen(self):
-        return random.randrange(40, 100, 10)
+        return random.randrange(70, 110, 10)
 
     def barometricp_gen(self):
         return round(random.uniform(995.6, 1009.1), 1)
 
 
-class WeatherGen:
-    total_snow = 0
+class Weather:
+    total_snow = 0.0
 
-    def __init__(self):
-        self.get_target_date()
-        self.weather = WeatherObservation(datetime.datetime.now())
+    def __init__(self, user_weather_observation=False, user_precipitation_gen=False):
+        self.get_start_date()
         self.interval_period = int(input("Interval period: "))
-        while self.weather.curr_weather.timestamp <= self.target_date:
-            print(f"""\n\nDate: {self.weather.curr_weather.timestamp.strftime('%Y, %B, %d %I:%M%p')}
-                        Temperature: {self.weather.curr_weather.temperature}C
-                        Dewpoint: {self.weather.curr_weather.dewpoint}
-                        Humidity: {self.weather.curr_weather.humidity}%
-                        Barometric pressure: {self.weather.curr_weather.barometric_pressure}
-                        Total snow amount: {round(WeatherGen.total_snow, 3)} meters""")
-            self.__next__()
-            print(f"""\n\nDate: {self.weather.curr_weather.timestamp.strftime('%Y, %B, %d %I:%M%p')}
-                        Temperature: {self.weather.curr_weather.temperature}C
-                        Dewpoint: {self.weather.curr_weather.dewpoint}
-                        Humidity: {self.weather.curr_weather.humidity}%
-                        Barometric pressure: {self.weather.curr_weather.barometric_pressure}
-                        Total snow amount: {round(WeatherGen.total_snow, 3)} meters""")
+        self.user_WeatherObservation = user_weather_observation
+        self.user_PrecipitationGen = user_precipitation_gen
+        if self.user_WeatherObservation:
+            self.weather = self.user_WeatherObservation(self.start_date)
+        else:
+            self.weather = WeatherObservation(self.start_date)
+        self.__next__()
+        self.date_after_duration = self.weather.curr_weather.timestamp + datetime.timedelta(minutes=self.interval_period)
+        print(f"""\n\nDate: {self.date_after_duration.strftime('%Y, %B, %d %I:%M%p')}
+                    Temperature: {self.weather.curr_weather.temperature}C
+                    Dewpoint: {self.weather.curr_weather.dewpoint}
+                    Humidity: {self.weather.curr_weather.humidity}%
+                    Barometric pressure: {self.weather.curr_weather.barometric_pressure}
+                    Total snow amount: {round(Weather.total_snow, 3)} meters""")
+        WeatherMeasurement(self.weather, self.precipitation_gen)
 
     def __next__(self):
+        if self.user_PrecipitationGen:
+            self.precipitation_gen = self.user_PrecipitationGen(self.weather, self.interval_period)
+        else:
+            self.precipitation_gen = PrecipitationGen(self.weather, self.interval_period)
 
-        precipitation_gen = PrecipitationGen(self.weather, self.interval_period)
-        if precipitation_gen.snow_or_rain() == "Snow":
-            self.add_snow(precipitation_gen.precipitation_amount())
-        if precipitation_gen.snow_or_rain() == "Rain":
-            WeatherGen.total_snow -= precipitation_gen.precipitation_amount()
+        if self.precipitation_gen.snow_or_rain() == "Snow":
+            self.add_snow(self.precipitation_gen.precipitation_amount())
+        if self.precipitation_gen.snow_or_rain() == "Rain":
+            Weather.total_snow -= self.precipitation_gen.precipitation_amount()
+
         if self.weather.curr_weather.temperature > 0:
             self.snow_melt_temp()
-        if WeatherGen.total_snow < 0:
-            WeatherGen.total_snow = 0
-        self.weather = WeatherObservation(self.weather.curr_weather.timestamp + datetime.timedelta(minutes=self.interval_period))
+        if Weather.total_snow < 0:
+            Weather.total_snow = 0
 
-    def get_target_date(self):
+    def get_start_date(self):
         self.year = int(input("Enter a target year (YYYY): "))
         self.month = int(input("Enter a target month (MM): "))
         self.day = int(input("Enter a target day (DD): "))
         self.hour = int(input("Enter a target hour (HH): "))
         self.min = int(input("Enter a target minute (MM): "))
-        self.target_date = datetime.datetime(self.year, self.month, self.day, self.hour, self.min, 0)
+        self.start_date = datetime.datetime(self.year, self.month, self.day, self.hour, self.min, 0)
 
     def add_snow(self, precipitation_amount):
         if -1 >= self.weather.curr_weather.temperature >= -3:
-            WeatherGen.total_snow += precipitation_amount * .05
+            Weather.total_snow += precipitation_amount * .05
         if -4 >= self.weather.curr_weather.temperature >= -6:
-            WeatherGen.total_snow += precipitation_amount * .2
+            Weather.total_snow += precipitation_amount * .2
         else:
-            WeatherGen.total_snow += precipitation_amount * .5
+            Weather.total_snow += precipitation_amount * .5
 
     def snow_melt_temp(self):
         if self.weather.curr_weather.temperature == 1:
@@ -121,7 +124,12 @@ class PrecipitationGen:
         return 0
 
     def snow_or_rain(self):
-        if self.temp < 0:
+        if self.temp <= 0:
             return "Snow"
         else:
             return "Rain"
+
+class WeatherMeasurement:
+    collection_of_weather = []
+    def __init__(self, weather_observation, precipitation):
+        WeatherMeasurement.collection_of_weather.append((weather_observation, precipitation))
