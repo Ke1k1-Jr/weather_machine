@@ -1,5 +1,6 @@
 import generators
 
-test = generators.WeatherGen()
+
+generators.Weather()
 
 
